@@ -111,6 +111,8 @@ class AlarmServerConfig():
             self.CALLBACKURL_ACCESS_TOKEN = os.environ['CALLBACKURL_ACCESS_TOKEN']
         if self.LOGFILE == 'ENV':
             self.LOGFILE = os.environ['LOGFILE']
+        if self.ENVISALINKHOST == 'ENV':
+            self.ENVISALINKHOST = os.environ['ENVISALINKHOST']
 
         global LOGTOFILE
         if self.LOGFILE == '':
