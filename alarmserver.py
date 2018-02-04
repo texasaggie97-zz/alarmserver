@@ -19,12 +19,12 @@ import time
 import getopt
 import requests
 import os
+import logging
+import logging.handlers
 
 from envisalinkdefs import evl_ResponseTypes
 from envisalinkdefs import evl_Defaults
 from envisalinkdefs import evl_ArmModes
-
-LOGTOFILE = False
 
 class CodeError(Exception): pass
 
@@ -43,13 +43,31 @@ def dict_merge(a, b):
 def getMessageType(code):
     return evl_ResponseTypes[code]
 
-def alarmserver_logger(message, type = 0, level = 0):
-    if LOGTOFILE:
-        outfile.write(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+' '+message+'\n')
-        outfile.flush()
+def configure_logging(lvl=logging.INFO, logfile=None):
+    root = logging.getLogger()
+    root.setLevel(lvl)
+
+    formatter = logging.Formatter(
+        "[%(asctime)s] [%(levelname)8s] --- %(message)s (%(filename)s:%(funcName)s:%(lineno)s)",
+        "%Y-%m-%d %H:%M:%S")
+    if logfile is None:
+        hndlr = logging.StreamHandler(sys.stdout)
     else:
-        print (str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+' '+message)
-    
+        print("Logging to file %s" % logfile)
+        hndlr = logging.handlers.RotatingFileHandler(logfile, maxBytes=20000000, backupCount=5)
+    hndlr.setFormatter(formatter)
+    root.addHandler(hndlr)
+
+def alarmserver_logger(message, type=0, level=logging.INFO):
+    level_function = {
+        logging.DEBUG: logging.debug,
+        logging.INFO: logging.info,
+        logging.WARN: logging.warn,
+        logging.ERROR: logging.error,
+        logging.CRITICAL: logging.critical,
+    }
+
+    level_function[level](message)
 
 def to_chars(string):
     chars = []
@@ -114,11 +132,8 @@ class AlarmServerConfig():
         if self.ENVISALINKHOST == 'ENV':
             self.ENVISALINKHOST = os.environ['ENVISALINKHOST']
 
-        global LOGTOFILE
         if self.LOGFILE == '':
-            LOGTOFILE = False
-        else:
-            LOGTOFILE = True
+            self.LOGFILE = None
 
         self.PARTITIONNAMES={}
         self.PARTITIONS={}
@@ -870,9 +885,7 @@ if __name__=="__main__":
     main(sys.argv[1:])
     print('Using configuration file %s' % conffile)
     config = AlarmServerConfig(conffile)
-    if LOGTOFILE:
-        outfile=open(config.LOGFILE,'a')
-        print ('Writing logfile to %s' % config.LOGFILE)
+    configure_logging(logfile=config.LOGFILE)
 
     alarmserver_logger('Alarm Server Starting')
     alarmserver_logger('Currently Supporting Envisalink 2DS/3/4 only')
@@ -892,8 +905,6 @@ if __name__=="__main__":
     except KeyboardInterrupt:
         print "Crtl+C pressed. Shutting down."
         alarmserver_logger('Shutting down from Ctrl+C')
-        if LOGTOFILE:
-            outfile.close()
         
         server.shutdown(socket.SHUT_RDWR) 
         server.close() 
